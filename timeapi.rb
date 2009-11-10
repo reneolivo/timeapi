@@ -2,6 +2,7 @@ require 'rubygems'
 require 'sinatra'
 require 'chronic'
 require 'date'
+require 'time'
 
 module TimeAPI
   PST = -8
@@ -38,17 +39,28 @@ module TimeAPI
     
     get '/:zone/:time' do
       zone = params[:zone].upcase
+      time = params[:time] \
+              .gsub(/^at /, '') \
+              .gsub(/(\d)h/, '\1 hours') \
+              .gsub(/(\d)min/, '\1 minutes') \
+              .gsub(/(\d)m/, '\1 minutes') \
+              .gsub(/(\d)sec/, '\1 seconds') \
+              .gsub(/(\d)s/, '\1 seconds')
       offset = TimeAPI::const_get(zone)
       
       Chronic.parse(
-        params[:time], :now=>Time.new.utc.to_datetime.new_offset(Rational(offset,24))
-      ).to_datetime.new_offset(Rational(offset,24)).to_s
+        time, :now=>Time.new.utc.set_timezone(offset)
+      ).to_datetime.to_s
     end
   
   end
 end
 
 class Time
+  def set_timezone(offset)
+    Time.parse(to_datetime.new_offset(Rational(offset,24)).to_s)
+  end
+  
   def to_datetime
     # Convert seconds + microseconds into a fractional number of seconds
     seconds = sec + Rational(usec, 10**6)
