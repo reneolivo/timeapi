@@ -41,7 +41,7 @@ module TimeAPI
       offset = TimeAPI::const_get(zone)
       
       Chronic.parse(
-        params[:time], :now=>Time.new.utc
+        params[:time], :now=>Time.new.utc.to_datetime.new_offset(Rational(offset,24))
       ).to_datetime.new_offset(Rational(offset,24)).to_s
     end
   
