@@ -59,3 +59,9 @@ class Time
     DateTime.new(year, month, day, hour, min, seconds, offset)
   end
 end
+
+class DateTime
+  def to_datetime
+    self
+  end
+end
