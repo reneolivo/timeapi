@@ -23,3 +23,10 @@ API (just one method) is available on URL http://chronic.heroku.com/pdt/{your_st
 For example:
 
   http://chronic.heroku.com/pdt/in+two+hours
+
+You can also add a format string based on Ruby Time strftime, replacing % with \
+For example:
+
+  http://chronic.heroku.com/pdt/in+two+hours?\a \b \d \I:\M:\S \Z \Y
+
+See http://corelib.rubyonrails.org/classes/Time.html#M000264 for more info.

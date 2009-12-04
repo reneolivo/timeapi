@@ -21,7 +21,13 @@ module TimeAPI
     set :sessions, false
     set :run, false
     set :environment, ENV['RACK_ENV']
-  
+    
+    def format
+      request.query_string \
+        .gsub('%20', ' ') \
+        .gsub('\\', '%') \
+    end
+    
     get '/' do
       erb :index
     end
@@ -34,7 +40,7 @@ module TimeAPI
       zone = params[:zone].upcase
       offset = TimeAPI::const_get(zone)
       
-      Time.new.utc.to_datetime.new_offset(Rational(offset,24)).to_s
+      Time.new.utc.to_datetime.new_offset(Rational(offset,24)).to_s(format)
     end
     
     get '/:zone/:time' do
@@ -50,7 +56,7 @@ module TimeAPI
       
       Chronic.parse(
         time, :now=>Time.new.utc.set_timezone(offset)
-      ).to_datetime.to_s
+      ).to_datetime.to_s(format)
     end
   
   end
@@ -75,5 +81,13 @@ end
 class DateTime
   def to_datetime
     self
+  end
+  
+  def to_s(format='')
+    unless format.empty?
+      strftime(format)
+    else
+      strftime
+    end
   end
 end
