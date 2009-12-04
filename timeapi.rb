@@ -56,7 +56,7 @@ module TimeAPI
       
       Chronic.parse(
         time, :now=>Time.new.utc.set_timezone(offset)
-      ).to_datetime.to_s(format)
+      ).to_datetime.new_offset(Rational(offset,24)).to_s(format)
     end
   
   end
