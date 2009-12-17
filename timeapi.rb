@@ -3,6 +3,7 @@ require 'sinatra'
 require 'chronic'
 require 'date'
 require 'time'
+require 'active_support'
 
 module TimeAPI
   PST = -8
@@ -54,19 +55,15 @@ module TimeAPI
               .gsub(/(\d)s/, '\1 seconds')
       offset = TimeAPI::const_get(zone)
       
-      Chronic.parse(
-        time, :now=>Time.new.utc.set_timezone(offset)
-      ).to_datetime.new_offset(Rational(offset,24)).to_s(format)
+      Time.zone = offset
+      Chronic.time_class = Time.zone
+      Chronic.parse(time).to_datetime.to_s(format)
     end
   
   end
 end
 
-class Time
-  def set_timezone(offset)
-    Time.parse(to_datetime.new_offset(Rational(offset,24)).to_s)
-  end
-  
+class Time  
   def to_datetime
     # Convert seconds + microseconds into a fractional number of seconds
     seconds = sec + Rational(usec, 10**6)
