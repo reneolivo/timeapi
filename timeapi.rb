@@ -4,6 +4,7 @@ require 'chronic'
 require 'date'
 require 'time'
 require 'active_support'
+require 'cgi'
 require 'json'
 
 module TimeAPI
@@ -81,8 +82,7 @@ module TimeAPI
     def json?
       prefers_json? \
         || /\.json$/.match((params[:zone] || '').downcase) \
-        || /\.json$/.match((params[:time] || '').downcase) \
-        || request.params.map { |k,v| k.downcase }.include?('json')
+        || /\.json$/.match((params[:time] || '').downcase)
     end
 	
     def jsonp?
@@ -90,9 +90,10 @@ module TimeAPI
     end
 	
     def format
-      (request.params['format'] || jsonp? ? '%B %d, %Y %H:%M:%S GMT%z' : '') \
-        .gsub('%20', ' ') \
-        .gsub('\\', '%')
+      format = (request.params.select { |k,v| v.blank? }.first || [nil]).first \
+        || request.params['format'] \
+        || (jsonp? ? '%B %d, %Y %H:%M:%S GMT%z' : '')
+      CGI.unescape(format).gsub('\\', '%')
     end
 	    
     get '/' do
