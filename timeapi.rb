@@ -4,77 +4,97 @@ require 'chronic'
 require 'date'
 require 'time'
 require 'active_support'
+require 'json'
 
 module TimeAPI
   ZoneOffset = {
-	'A' => +1,
-	'ADT' => -3,
-	'AKDT' => -8,
-	'AKST' => -9,
-	'AST' => -4,
-	'B' => +2,
-	'BST' => +1,
-	'C' => +3,
-	'CDT' => -5,
-	'CEDT' => +2,
-	'CEST' => +2,
-	'CET' => +1,
-	'CST' => -6,
-	'D' => +4,
-	'E' => +5,
-	'EDT' => -4,
-	'EEDT' => +3,
-	'EEST' => +3,
-	'EET' => +2,
-	'EST' => -5,
-	'F' => +6,
-	'G' => +7,
-	'GMT' => 0,
-	'H' => +8,
-	'HADT' => -9,
-	'HAST' => -10,
-	'I' => +9,
-	'IST' => +1,
-	'K' => +10,
-	'L' => +11,
-	'M' => +12,
-	'MDT' => -6,
-	'MSD' => +4,
-	'MSK' => +3,
-	'MST' => -7,
-	'N' => -1,
-	'O' => -2,
-	'P' => -3,
-	'PDT' => -7,
-	'PST' => -8,
-	'Q' => -4,
-	'R' => -5,
-	'S' => -6,
-	'T' => -7,
-	'U' => -8,
-	'UTC' => 0,
-	'V' => -9,
-	'W' => -10,
-	'WEDT' => +1,
-	'WEST' => +1,
-	'WET' => 0,
-	'X' => -11,
-	'Y' => -12,
-	'Z' => 0
+    'A' => +1,
+    'ADT' => -3,
+    'AKDT' => -8,
+    'AKST' => -9,
+    'AST' => -4,
+    'B' => +2,
+    'BST' => +1,
+    'C' => +3,
+    'CDT' => -5,
+    'CEDT' => +2,
+    'CEST' => +2,
+    'CET' => +1,
+    'CST' => -6,
+    'D' => +4,
+    'E' => +5,
+    'EDT' => -4,
+    'EEDT' => +3,
+    'EEST' => +3,
+    'EET' => +2,
+    'EST' => -5,
+    'F' => +6,
+    'G' => +7,
+    'GMT' => 0,
+    'H' => +8,
+    'HADT' => -9,
+    'HAST' => -10,
+    'I' => +9,
+    'IST' => +1,
+    'K' => +10,
+    'L' => +11,
+    'M' => +12,
+    'MDT' => -6,
+    'MSD' => +4,
+    'MSK' => +3,
+    'MST' => -7,
+    'N' => -1,
+    'O' => -2,
+    'P' => -3,
+    'PDT' => -7,
+    'PST' => -8,
+    'Q' => -4,
+    'R' => -5,
+    'S' => -6,
+    'T' => -7,
+    'U' => -8,
+    'UTC' => 0,
+    'V' => -9,
+    'W' => -10,
+    'WEDT' => +1,
+    'WEST' => +1,
+    'WET' => 0,
+    'X' => -11,
+    'Y' => -12,
+    'Z' => 0
   }
   
   class App < Sinatra::Default
-  
+
     set :sessions, false
     set :run, false
     set :environment, ENV['RACK_ENV']
     
-    def format
-      request.query_string \
-        .gsub('%20', ' ') \
-        .gsub('\\', '%') \
+    def callback
+      (request.params['callback'] || '').gsub(/[^a-zA-Z0-9_]/, '')
     end
-    
+	
+    def prefers_json?
+      request.accept.first.downcase == 'application/json'
+    end
+  
+    def json?
+      prefers_json? \
+        || /\.json$/.match((params[:zone] || '').downcase) \
+        || /\.json$/.match((params[:time] || '').downcase) \
+        || request.params.map { |k,v| k.downcase }.include?('json')
+    end
+	
+    def jsonp?
+      json? && callback.present?
+    end
+	
+    def format
+      (request.params['format'] || jsonp? ? '%B %d, %Y %H:%M:%S GMT%z' : '') \
+        .gsub('%20', ' ') \
+        .gsub('\\', '%')
+    end
+	    
     get '/' do
       erb :index
     end
@@ -83,29 +103,36 @@ module TimeAPI
       ''
     end
     
-    get '/:zone' do
-      zone = params[:zone].upcase
-      offset = ZoneOffset[zone] || Integer(zone)
-      
-      Time.new.utc.to_datetime.new_offset(Rational(offset,24)).to_s(format)
+    get '/:zone/?' do
+      parse(params[:zone])
     end
     
-    get '/:zone/:time' do
-      zone = params[:zone].upcase
-      time = params[:time] \
-              .gsub(/^at /, '') \
-              .gsub(/(\d)h/, '\1 hours') \
-              .gsub(/(\d)min/, '\1 minutes') \
-              .gsub(/(\d)m/, '\1 minutes') \
-              .gsub(/(\d)sec/, '\1 seconds') \
-              .gsub(/(\d)s/, '\1 seconds')
+    get '/:zone/:time/?' do
+      parse(params[:zone], params[:time])
+    end
+  
+    def parse(zone='UTC', time='now')
+      zone = zone.gsub(/\.json$/, '').upcase
       offset = ZoneOffset[zone] || Integer(zone)
+      time = time \
+        .gsub(/\.json$/, '') \
+        .gsub(/^at /, '') \
+        .gsub(/(\d)h/, '\1 hours') \
+        .gsub(/(\d)min/, '\1 minutes') \
+        .gsub(/(\d)m/, '\1 minutes') \
+        .gsub(/(\d)sec/, '\1 seconds') \
+        .gsub(/(\d)s/, '\1 seconds')
+      
+      if prefers_json?
+        response.headers['Content-Type'] = 'application/json'
+      end
       
       Time.zone = offset
       Chronic.time_class = Time.zone
-      Chronic.parse(time).to_datetime.to_s(format)
+      time = Chronic.parse(time).to_datetime.to_s(format)
+      time = json? ? { 'dateString' => time }.to_json : time
+      time = jsonp? ? callback + '(' + time + ');' : time
     end
-  
   end
 end
 
