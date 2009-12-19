@@ -76,7 +76,7 @@ module TimeAPI
     end
 	
     def prefers_json?
-      request.accept.first.downcase == 'application/json'
+      (request.accept.first || '').downcase == 'application/json'
     end
   
     def json?
