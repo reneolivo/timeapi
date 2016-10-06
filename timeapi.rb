@@ -124,9 +124,8 @@ module TimeAPI
         .gsub(/(\d)sec/, '\1 seconds') \
         .gsub(/(\d)s/, '\1 seconds')
       
-      if prefers_json?
-        response.headers['Content-Type'] = 'application/json'
-      end
+      
+      response.headers['Content-Type'] = 'application/json'
       
       Time.zone = offset
       Chronic.time_class = Time.zone
